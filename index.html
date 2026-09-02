@@ -1,0 +1,728 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Vouch — weekly review</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#172D06; --bone:#EFF1EA; --moss:#3E5B1C;
+    --lime:#A8C43A; --rust:#7A2E12; --mute:#6E7566;
+    --rule:rgba(23,45,6,.14);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:var(--bone); color:var(--ink);
+    font:400 15px/1.5 Inter,system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased; display:flex; flex-direction:column;
+  }
+  button{font:inherit;color:inherit;cursor:pointer}
+  a{color:var(--moss)}
+
+  /* week bar — one hairline per queued item, the progress signature */
+  #weekbar{display:flex;gap:2px;height:34px;padding:12px 24px 0;align-items:flex-end;flex:0 0 auto}
+  #weekbar i{flex:1 1 0;min-width:1px;height:12px;background:var(--rule);transition:height .18s ease,background .18s ease}
+  #weekbar i.done{height:22px;background:var(--lime)}
+  #weekbar i.cut{height:8px;background:var(--rust);opacity:.45}
+  #weekbar i.now{height:34px;background:var(--ink)}
+
+  header{display:flex;justify-content:space-between;align-items:baseline;
+    padding:14px 24px 18px;border-bottom:1px solid var(--rule);flex:0 0 auto}
+  header h1{font:500 20px/1 "Playfair Display",Georgia,serif;margin:0;letter-spacing:.01em}
+  header .meta{font:500 11px/1 Inter;letter-spacing:.14em;text-transform:uppercase;color:var(--mute)}
+  header button.out{background:none;border:0;font:500 11px/1 Inter;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--mute);padding:0;margin-left:16px}
+  header button.out:hover{color:var(--rust)}
+
+  main{flex:1 1 auto;overflow:auto;display:grid;place-items:start center;padding:40px 24px 120px}
+  .card{width:min(660px,100%)}
+
+  .eyebrow{font:500 11px/1 Inter;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--mute);display:flex;gap:14px;flex-wrap:wrap;margin-bottom:18px}
+  .eyebrow b{color:var(--moss);font-weight:600}
+  .tier{border:1px solid var(--rule);padding:4px 7px}
+  .unresolved{color:var(--rust);border:1px solid var(--rust);padding:4px 7px}
+
+  .title{font:700 40px/1.08 "Playfair Display",Georgia,serif;margin:0 0 12px;letter-spacing:-.01em}
+  .one-liner{font-size:19px;line-height:1.45;margin:0 0 26px;max-width:52ch}
+  [contenteditable="true"]:focus{outline:none;background:rgba(168,196,58,.22);
+    box-shadow:0 0 0 6px rgba(168,196,58,.22)}
+
+  dl{display:grid;grid-template-columns:130px 1fr;margin:0;border-top:1px solid var(--rule)}
+  dt{font:500 11px/1 Inter;letter-spacing:.12em;text-transform:uppercase;color:var(--mute);
+    padding:13px 0;border-bottom:1px solid var(--rule)}
+  dd{margin:0;padding:13px 0;border-bottom:1px solid var(--rule);word-break:break-word}
+  dd.mono{font-family:"JetBrains Mono",monospace;font-size:13px}
+
+  .thumb{width:100%;aspect-ratio:16/9;object-fit:cover;margin-bottom:24px;background:var(--rule)}
+  .rights{font:500 10px/1 Inter;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--mute);margin:-18px 0 24px}
+
+  footer{position:fixed;left:0;right:0;bottom:0;background:var(--bone);
+    border-top:1px solid var(--rule);padding:14px 24px;display:flex;gap:10px;
+    align-items:center;flex-wrap:wrap}
+  kbd{font:500 12px/1 "JetBrains Mono",monospace;border:1px solid var(--ink);
+    padding:6px 9px;background:transparent}
+  .act{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--mute)}
+  .act.approve kbd{background:var(--lime);border-color:var(--lime)}
+  /* Edit mode is a mode, so it has to look like one: the actions that are
+     unavailable while typing dim, and the way out is stated explicitly. */
+  footer .act{cursor:pointer}
+  footer .done-edit{display:none}
+  footer.editing .done-edit{display:flex}
+  footer.editing .act:not(.done-edit){opacity:.3;cursor:default}
+  footer.editing .done-edit kbd{background:var(--ink);color:var(--bone);border-color:var(--ink)}
+  .act.reject kbd{background:var(--rust);border-color:var(--rust);color:var(--bone)}
+  .spacer{flex:1}
+
+  .panel{width:min(400px,100%);margin:48px auto}
+  .panel h2{font:500 26px/1.2 "Playfair Display",serif;margin:0 0 6px}
+  .panel .sub{color:var(--mute);font-size:14px;margin:0 0 8px}
+  .panel label{display:block;font:500 11px/1 Inter;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--mute);margin:22px 0 7px}
+  .panel input{width:100%;padding:11px;border:1px solid var(--ink);background:transparent;font:inherit}
+  .panel button.primary{margin-top:26px;width:100%;padding:13px;background:var(--ink);
+    color:var(--bone);border:0;letter-spacing:.1em;text-transform:uppercase;
+    font-size:12px;font-weight:600}
+  .panel button.primary[disabled]{opacity:.5;cursor:progress}
+  .err{color:var(--rust);font-size:13px;margin-top:14px;line-height:1.5;white-space:pre-line}
+  .note{color:var(--mute);font-size:12px;margin-top:18px;line-height:1.6}
+  details summary{font-size:12px;color:var(--mute);cursor:pointer;margin-top:20px}
+
+  .empty{text-align:center;padding:80px 0}
+  .empty h2{font:500 30px/1.2 "Playfair Display",serif;margin:0 0 10px}
+  .empty p{color:var(--mute);margin:0}
+
+  /* add-event form. Two columns on a wide screen, one on a phone; a field can
+     claim the full width with .wide. */
+  .form{width:min(660px,100%)}
+  .form h2{font:500 30px/1.15 "Playfair Display",Georgia,serif;margin:0 0 6px}
+  .form .sub{color:var(--mute);font-size:14px;margin:0 0 26px;max-width:52ch}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:0 20px}
+  .f{display:flex;flex-direction:column;margin-bottom:18px}
+  .f.wide{grid-column:1/-1}
+  .f label{font:500 11px/1 Inter;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--mute);margin-bottom:7px;display:flex;justify-content:space-between;gap:8px}
+  .f label em{font-style:normal;text-transform:none;letter-spacing:0;font-size:11px}
+  .f input,.f select,.f textarea{width:100%;padding:11px;border:1px solid var(--ink);
+    background:transparent;font:inherit;color:inherit;border-radius:0}
+  .f textarea{resize:vertical;min-height:64px}
+  .f input:focus,.f select:focus,.f textarea:focus{outline:none;
+    box-shadow:0 0 0 4px rgba(168,196,58,.35)}
+  .f .hint{font-size:12px;color:var(--mute);margin-top:6px}
+  .f.bad input,.f.bad textarea{border-color:var(--rust)}
+  .f.bad label em{color:var(--rust)}
+  .form .actions{display:flex;gap:12px;align-items:center;margin-top:8px}
+  .form button.primary{padding:13px 26px;background:var(--ink);color:var(--bone);
+    border:0;letter-spacing:.1em;text-transform:uppercase;font-size:12px;font-weight:600}
+  .form button.primary[disabled]{opacity:.45}
+  .form button.ghost{background:none;border:1px solid var(--rule);padding:13px 20px;
+    letter-spacing:.1em;text-transform:uppercase;font-size:12px;font-weight:600;color:var(--mute)}
+  .ok{border-left:3px solid var(--lime);padding:12px 0 12px 14px;margin:0 0 24px;font-size:14px}
+  .ok b{font-family:"JetBrains Mono",monospace;font-weight:500}
+  .added{margin-top:44px;border-top:1px solid var(--rule)}
+  .added h3{font:500 11px/1 Inter;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--mute);margin:22px 0 4px}
+  .added ul{list-style:none;margin:0;padding:0}
+  .added li{display:flex;gap:12px;align-items:baseline;padding:12px 0;
+    border-bottom:1px solid var(--rule);font-size:14px}
+  .added li .when{color:var(--mute);font-size:12px;white-space:nowrap}
+  .added li button{background:none;border:0;color:var(--mute);font-size:12px;
+    letter-spacing:.1em;text-transform:uppercase;padding:0}
+  .added li button:hover{color:var(--rust)}
+  header button.add{background:none;border:1px solid var(--rule);font:500 11px/1 Inter;
+    letter-spacing:.14em;text-transform:uppercase;color:var(--moss);padding:7px 11px;
+    margin-left:16px}
+  header button.add:hover{border-color:var(--moss)}
+
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+  @media (max-width:640px){
+    .title{font-size:30px}
+    .grid{grid-template-columns:1fr}
+    dl{grid-template-columns:1fr}
+    dt{padding-bottom:0;border-bottom:0}
+    footer{gap:6px} .act span{display:none}
+  }
+</style>
+</head>
+<body>
+
+<div id="weekbar" aria-hidden="true"></div>
+<header>
+  <h1>Weekly review</h1>
+  <div><span class="meta" id="status">Signed out</span><button class="add" id="add" hidden>+ Add event</button><button class="out" id="out" hidden>Sign out</button></div>
+</header>
+
+<main id="main"></main>
+
+<footer id="bar" hidden>
+  <span class="act approve" data-act="a"><kbd>A</kbd><span>Approve</span></span>
+  <span class="act reject" data-act="r"><kbd>R</kbd><span>Reject</span></span>
+  <span class="act" data-act="e"><kbd>E</kbd><span>Edit</span></span>
+  <span class="act" data-act="s"><kbd>S</kbd><span>Skip</span></span>
+  <span class="act" data-act="u"><kbd>U</kbd><span>Undo</span></span>
+  <span class="act done-edit"><kbd>Enter</kbd><span>Done editing</span></span>
+  <span class="spacer"></span>
+  <span class="act" data-act="o"><kbd>O</kbd><span>Open source</span></span>
+</footer>
+
+<script>
+/* The publishable key is public by design — it already ships inside the app and
+   is safe in this file. It is NOT a login. RLS on weekly_queue requires an
+   authenticated user, so this signs in with email and password and uses the
+   returned JWT as the bearer token. Never paste an sb_secret_ key here: in a
+   browser it would bypass every row-level security policy. */
+/* PRODUCTION. Diagnosed 2026-08-25: both hosts are healthy and resolve to the
+   same project ref (mtqdvyvjyudornwxvuhl), so the custom domain DOES serve the
+   API and was never the cause of the "Could not reach" error. See HANDOFF.md.
+
+   Deployed to Cloudflare Pages (tools/deploy_triage.sh). That is a different
+   origin from the API, so the project's CORS config has to keep allowing it --
+   Supabase allows all origins on the REST endpoint by default, which is what
+   makes this work. Supabase Storage was tried first and cannot host it: it
+   serves HTML as text/plain.
+
+   LOCAL — for `supabase start`, swap in:
+     const PROJECT_URL = "http://127.0.0.1:54321";
+     const PUBLISHABLE = "sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH";
+   The local anon key is a fixed dev-only value that ships with the CLI on every
+   machine; it is not a secret and grants nothing beyond what RLS allows. */
+const PROJECT_URL = "https://auth.logsocial.app";
+const PUBLISHABLE = "sb_publishable_HelzP7qdtIZIBwfhg3d3IA_rW-C-ozd";
+
+const S = { url:PROJECT_URL, pk:PUBLISHABLE, token:null, email:"",
+            week:"", rows:[], i:0, history:[], editing:false,
+            /* "queue" is the review deck, "add" is the hand-entry form. The
+               keyboard shortcuts belong to the deck alone: A must type an "a"
+               into the title field, not approve whatever is behind the form. */
+            mode:"queue" };
+const $ = s => document.querySelector(s);
+
+/* Opening this file directly (file://) gives the page a null origin. The browser
+   then refuses every cross-origin fetch before it leaves the tab, and the only
+   thing the catch block sees is an opaque TypeError with no status and no body —
+   which is exactly what "Could not reach ..." used to be reporting. Serve the
+   folder over http instead:  python3 -m http.server 8000  */
+const FILE_PROTOCOL = location.protocol === "file:";
+const FILE_WARNING =
+  'This page is open over file://, so the browser blocks every request to ' +
+  'Supabase before it is sent (null origin, no CORS). Serve the repo instead: ' +
+  'run  python3 -m http.server 8000  in the repo root and open ' +
+  'http://localhost:8000/triage/';
+if (FILE_PROTOCOL) console.warn("[triage] " + FILE_WARNING);
+const esc = s => String(s??"").replace(/[<>&]/g,c=>({"<":"&lt;",">":"&gt;","&":"&amp;"}[c]));
+
+function isoWeek(d){
+  const t = new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));
+  t.setUTCDate(t.getUTCDate()+4-(t.getUTCDay()||7));
+  const y0 = new Date(Date.UTC(t.getUTCFullYear(),0,1));
+  return `${t.getUTCFullYear()}-W${String(Math.ceil(((t-y0)/864e5+1)/7)).padStart(2,"0")}`;
+}
+function nextWeek(){ const d = new Date(); d.setDate(d.getDate()+7); return isoWeek(d); }
+
+/* ---------------------------------------------------------------- sign in */
+
+function signInScreen(msg){
+  $("#bar").hidden = true; $("#out").hidden = true; $("#add").hidden = true;
+  S.mode = "queue";
+  $("#weekbar").innerHTML = "";
+  $("#status").textContent = "Signed out";
+  $("#main").innerHTML = `
+    <div class="panel">
+      <h2>Sign in</h2>
+      <p class="sub">Reviewer account on the Log project.</p>
+      <label for="email">Email</label>
+      <input id="email" type="email" autocomplete="username" value="${esc(S.email)}">
+      <label for="pw">Password</label>
+      <input id="pw" type="password" autocomplete="current-password">
+      <label for="week">Week</label>
+      <input id="week" value="${esc(S.week || nextWeek())}">
+      <button class="primary" id="go">Open queue</button>
+      ${FILE_PROTOCOL ? `<p class="err">${esc(FILE_WARNING)}</p>` : ""}
+      ${msg ? `<p class="err">${esc(msg)}</p>` : ""}
+      <details>
+        <summary>Different project</summary>
+        <label for="url">Project URL</label>
+        <input id="url" value="${esc(S.url)}">
+        <label for="pk">Publishable key</label>
+        <input id="pk" value="${esc(S.pk)}">
+      </details>
+      <p class="note">The publishable key identifies the project, not you. Row-level
+        security still applies, so the queue only opens for a signed-in reviewer.</p>
+    </div>`;
+  $("#go").onclick = signIn;
+  $("#pw").addEventListener("keydown", e => { if(e.key === "Enter") signIn(); });
+  $("#email").focus();
+}
+
+async function signIn(){
+  const btn = $("#go"); btn.disabled = true; btn.textContent = "Signing in";
+  S.email = $("#email").value.trim();
+  S.week  = $("#week").value.trim() || nextWeek();
+  if($("#url")) S.url = $("#url").value.trim().replace(/\/$/,"");
+  if($("#pk"))  S.pk  = $("#pk").value.trim();
+
+  if(S.pk.startsWith("sb_secret_")){
+    return signInScreen("That is a secret key. Use the publishable key — a secret key in a browser bypasses row-level security.");
+  }
+  try{
+    const r = await fetch(`${S.url}/auth/v1/token?grant_type=password`, {
+      method:"POST",
+      headers:{ apikey:S.pk, "Content-Type":"application/json" },
+      body: JSON.stringify({ email:S.email, password:$("#pw").value })
+    });
+    const j = await r.json().catch(()=>({}));
+    if(!r.ok || !j.access_token){
+      return signInScreen(j.error_description || j.msg || `Sign-in failed (${r.status})`);
+    }
+    S.token = j.access_token;
+    $("#out").hidden = false;
+    $("#add").hidden = false;
+    await load();
+  }catch(e){
+    /* A failed fetch() surfaces as an opaque TypeError with no status and no
+       body, so the only diagnosis available is the error's own name+message.
+       Print it verbatim rather than guessing at the cause. */
+    const detail = `${e.name}: ${e.message}`;
+    signInScreen(FILE_PROTOCOL
+      ? `${FILE_WARNING}\n\nUnderlying error — ${detail}`
+      : `Could not reach ${S.url} — ${detail}. A bare "Failed to fetch" here is `
+        + `almost always CORS, an offline network, or a URL that is not a `
+        + `Supabase endpoint; a DNS failure names the host. If the custom `
+        + `domain does not serve the API, open "Different project" and use the `
+        + `https://<project-ref>.supabase.co URL.`);
+  }
+}
+
+$("#out").onclick = () => { S.token = null; S.rows = []; S.history = []; signInScreen(); };
+
+const authHeaders = () => ({ apikey:S.pk, Authorization:`Bearer ${S.token}` });
+
+/* ---------------------------------------------------------------- queue */
+
+async function load(){
+  S.mode = "queue";
+  $("#status").textContent = "Loading";
+  try{
+    const r = await fetch(`${S.url}/rest/v1/review_queue?week=eq.${encodeURIComponent(S.week)}&select=*`,
+                          { headers: authHeaders() });
+    if(r.status === 401 || r.status === 403){
+      return signInScreen("Session expired, or this account has no reviewer access.");
+    }
+    if(!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+    S.rows = await r.json(); S.i = 0; S.history = [];
+    if(!S.rows.length) return empty();
+    $("#bar").hidden = false;
+    $("#weekbar").innerHTML = S.rows.map(()=>"<i></i>").join("");
+    render();
+  }catch(e){
+    $("#status").textContent = "Error";
+    $("#main").innerHTML = `<div class="panel"><p class="err">${esc(e.name + ": " + e.message)}</p>
+      <p class="note">Check that the review_queue view exists, has security_invoker
+      turned on, and that the authenticated role has select on it.</p></div>`;
+  }
+}
+
+function empty(){
+  $("#status").textContent = S.week;
+  $("#bar").hidden = true;
+  $("#main").innerHTML = `<div class="empty"><h2>Queue is clear</h2>
+    <p>Nothing for ${esc(S.week)} needs a human. Publish runs Thursday 06:00.</p></div>`;
+}
+
+function render(){
+  // The card is rebuilt from scratch here, so any contenteditable attributes and
+  // the footer's edit state belong to a node that no longer exists.
+  S.editing = false;
+  $("#bar")?.classList.remove("editing");
+  if(S.i >= S.rows.length) return done();
+  const r = S.rows[S.i], p = r.payload;
+  [...$("#weekbar").children].forEach((b,n)=>b.classList.toggle("now", n===S.i));
+  $("#status").textContent = `${S.week} · ${S.i+1} of ${S.rows.length}`;
+
+  const when = new Date(p.starts_at).toLocaleString("en-US",
+    { weekday:"short", month:"short", day:"numeric", hour:"numeric",
+      minute:"2-digit", timeZone:p.timezone });
+  const unresolved = !p.place_ids || !p.place_ids.log_place_id;
+
+  $("#main").innerHTML = `
+    <article class="card">
+      ${p.image ? `<img class="thumb" src="${p.image.url}" alt="">
+        <div class="rights">${p.image.rights_status.replace(/_/g," ")}${
+          p.image.attribution ? " · " + esc(p.image.attribution) : ""}</div>` : ""}
+      <div class="eyebrow">
+        <span>${esc(r.city)}</span>
+        <b>${p.category.replace(/_/g," ")}</b>
+        <span class="tier">Tier ${p.freshness_tier}</span>
+        <span>${esc(p.provenance.source)}</span>
+        <span>conf ${Number(p.confidence).toFixed(2)}</span>
+        ${unresolved ? `<span class="unresolved">No place match</span>` : ""}
+      </div>
+      <h2 class="title" id="t">${esc(r.title)}</h2>
+      <p class="one-liner" id="o">${esc(r.one_liner || "—")}</p>
+      <dl>
+        <dt>When</dt><dd>${when}</dd>
+        <dt>Where</dt><dd>${esc(p.venue.name)}${p.venue.address ? ", " + esc(p.venue.address) : ""}</dd>
+        <dt>Price</dt><dd>${esc(p.price_band)}</dd>
+        <dt>Source</dt><dd class="mono"><a href="${esc(p.source_urls[0])}" target="_blank" rel="noopener">${esc(p.source_urls[0])}</a></dd>
+      </dl>
+    </article>`;
+}
+
+function done(){
+  [...$("#weekbar").children].forEach(b=>b.classList.remove("now"));
+  $("#status").textContent = `${S.week} · cleared`;
+  const cut = S.history.filter(h=>h.status==="rejected").length;
+  $("#main").innerHTML = `<div class="empty"><h2>Done</h2>
+    <p>${S.history.length - cut} approved, ${cut} rejected. Press U to undo the last one.</p></div>`;
+}
+
+async function decide(status){
+  const r = S.rows[S.i]; if(!r) return;
+  const title = $("#t")?.textContent.trim() ?? r.title;
+  const one   = $("#o")?.textContent.trim() ?? r.one_liner;
+  const edited = title !== r.title || one !== r.one_liner;
+  const body = { status: status === "approved" && edited ? "edited" : status,
+                 title, one_liner: one, reviewed_at: new Date().toISOString() };
+
+  $("#weekbar").children[S.i]?.classList.add(status === "rejected" ? "cut" : "done");
+  S.history.push({ id:r.id, status, i:S.i });
+  S.i++; S.editing = false; render();
+
+  try{
+    const res = await fetch(`${S.url}/rest/v1/weekly_queue?id=eq.${encodeURIComponent(r.id)}`, {
+      method:"PATCH",
+      headers:{ ...authHeaders(), "Content-Type":"application/json", Prefer:"return=minimal" },
+      body: JSON.stringify(body)
+    });
+    if(res.status === 401) signInScreen("Session expired. Sign in again — decisions already saved are kept.");
+    else if(!res.ok) $("#status").textContent = "Save failed — press U, then A";
+  }catch(e){ $("#status").textContent = "Save failed — press U, then A"; }
+}
+
+function startEdit(){
+  S.editing = true;
+  ["#t","#o"].forEach(s => $(s)?.setAttribute("contenteditable","true"));
+  $("#bar")?.classList.add("editing");
+  $("#t")?.focus();
+}
+
+function endEdit(){
+  if(!S.editing) return;
+  S.editing = false;
+  ["#t","#o"].forEach(s => $(s)?.removeAttribute("contenteditable"));
+  $("#bar")?.classList.remove("editing");
+  window.getSelection()?.removeAllRanges();
+}
+
+function undo(){
+  const last = S.history.pop(); if(!last) return;
+  S.i = last.i;
+  $("#weekbar").children[last.i]?.classList.remove("done","cut");
+  render();
+}
+
+/* ---------------------------------------------------------------- add event
+
+The pipeline harvests, but the best rows are often ones nothing crawls: a
+friend's opening, a sample sale posted to a story, a gallery night somebody
+mentioned. This form is how those get in.
+
+It posts to add_manual_event(), which builds the payload and the stable id
+server-side. Doing that here would mean reimplementing pipeline.core.match_key
+in a third language and keeping all three in step; the row also has to satisfy a
+schema whose additionalProperties is false, and a malformed one does not fail
+here -- it fails on Thursday, in publish, taking the whole city with it. So the
+browser sends plain fields and the database is the only thing that knows the
+shape. */
+
+const CITIES = [["nyc","New York"],["la","Los Angeles"],["sf","San Francisco"],
+                ["boston","Boston"],["cdmx","Ciudad de México"]];
+
+/* config/taxonomy.yaml. The nine categories are the ones weeklyRanking.ts joins
+   to the app's own taste taxonomy -- a row outside them falls through to
+   "event", loses the taste match, and defeats the point of adding it. */
+const SUBCATS = {
+  food_drink:["opening","popup","collab","tasting_menu","market","residency","closing"],
+  music_nightlife:["concert","dj","party","festival","listening","opening_night"],
+  art_exhibition:["opening","closing_weekend","museum_free_day","open_studio","fair","installation"],
+  popup_retail:["sample_sale","popup_shop","vintage_market","launch","trunk_show"],
+  outdoor_neighborhood:["street_fair","park_event","walk","seasonal","night_market"],
+  wellness_fitness:["run_club","class_series","retreat_day","workshop"],
+  talks_community:["talk","reading","screening_qa","meetup","panel"],
+  film_theater:["premiere","limited_run","revival","festival"],
+  sports:["home_game","race","tournament"],
+};
+
+const opts = (pairs, sel) => pairs.map(([v,l]) =>
+  `<option value="${esc(v)}"${v===sel?" selected":""}>${esc(l)}</option>`).join("");
+
+function addScreen(banner){
+  S.mode = "add";
+  endEdit();
+  $("#bar").hidden = true;
+  $("#weekbar").innerHTML = "";
+  $("#status").textContent = "Add event";
+
+  $("#main").innerHTML = `
+    <form class="form" id="addform" autocomplete="off">
+      <h2>Add an event</h2>
+      <p class="sub">Goes into the queue already approved, so it does not come back
+        to review. It reaches the app on the next publish.</p>
+      ${banner || ""}
+      <div class="grid">
+        <div class="f"><label for="a_city">City</label>
+          <select id="a_city">${opts(CITIES)}</select>
+          <span class="hint">Only these five publish.</span></div>
+
+        <div class="f"><label for="a_cat">Category</label>
+          <select id="a_cat">${opts(Object.keys(SUBCATS).map(k=>[k,k.replace(/_/g," ")]))}</select></div>
+
+        <div class="f wide"><label for="a_title">Title <em id="a_title_n">0/60</em></label>
+          <input id="a_title" maxlength="60" placeholder="Prada Sample Sale">
+          <span class="hint">Literal noun phrase. No adjectives, no hype.</span></div>
+
+        <div class="f wide"><label for="a_one">One-liner <em id="a_one_n">0/110</em></label>
+          <textarea id="a_one" maxlength="110"
+            placeholder="Runway samples at 70% off, cash only, line starts on Walker"></textarea>
+          <span class="hint">The specific fact a friend would add. 10 characters minimum.</span></div>
+
+        <div class="f"><label for="a_venue">Venue</label>
+          <input id="a_venue" placeholder="Canal St Market"></div>
+
+        <div class="f"><label for="a_addr">Address <em>optional</em></label>
+          <input id="a_addr" placeholder="265 Canal St"></div>
+
+        <div class="f"><label for="a_start">Starts <em id="a_wk"></em></label>
+          <input id="a_start" type="datetime-local">
+          <span class="hint">Local time in the city you picked.</span></div>
+
+        <div class="f"><label for="a_end">Ends <em>optional</em></label>
+          <input id="a_end" type="datetime-local"></div>
+
+        <div class="f"><label for="a_tier">Freshness</label>
+          <select id="a_tier">
+            <option value="1">1 — one-time, or opens/closes this week</option>
+            <option value="2">2 — limited run ending within 14 days</option>
+            <option value="3">3 — recurring, notable now</option>
+          </select></div>
+
+        <div class="f"><label for="a_sub">Subcategory <em>optional</em></label>
+          <select id="a_sub"></select></div>
+
+        <div class="f"><label for="a_price">Price</label>
+          <select id="a_price">${opts([["varies","varies"],["free","free"],
+            ["$","$"],["$$","$$"],["$$$","$$$"],["$$$$","$$$$"]])}</select></div>
+
+        <div class="f"><label for="a_hood">Neighborhood <em>optional</em></label>
+          <input id="a_hood" placeholder="Chinatown"></div>
+
+        <div class="f wide"><label for="a_src">Source URL</label>
+          <input id="a_src" placeholder="https://...">
+          <span class="hint">Where you found it. Shown on the card and link-checked at publish.</span></div>
+
+        <div class="f wide"><label for="a_book">Booking URL <em>optional</em></label>
+          <input id="a_book" placeholder="https://..."></div>
+
+        <div class="f wide"><label for="a_img">Image URL <em>optional</em></label>
+          <input id="a_img" placeholder="https://...">
+          <span class="hint">Hotlinked from wherever it lives — never copied into our storage.</span></div>
+
+        <div class="f wide"><label for="a_rights">Image rights</label>
+          <select id="a_rights">
+            <option value="og_hotlink">og_hotlink — the image on the event's own page</option>
+            <option value="brand_card">brand_card — artwork we made</option>
+            <option value="user_generated">user_generated — a photo we own</option>
+          </select>
+          <span class="hint">Ticketmaster and Wikimedia licences are not ours to assert by hand.</span></div>
+      </div>
+
+      <div class="actions">
+        <button type="submit" class="primary" id="a_go">Add to queue</button>
+        <button type="button" class="ghost" id="a_back">Back to queue</button>
+        <span class="hint" id="a_err"></span>
+      </div>
+
+      <div class="added" id="a_list"></div>
+    </form>`;
+
+  const syncSubs = () => {
+    const c = $("#a_cat").value;
+    $("#a_sub").innerHTML = `<option value="">—</option>` +
+      opts((SUBCATS[c]||[]).map(k=>[k,k.replace(/_/g," ")]));
+  };
+  $("#a_cat").addEventListener("change", syncSubs);
+  syncSubs();
+
+  const count = (src, out, min) => {
+    const el = $(src), n = el.value.trim().length;
+    $(out).textContent = `${n}/${el.getAttribute("maxlength")}`;
+    el.closest(".f").classList.toggle("bad", n > 0 && n < min);
+  };
+  $("#a_title").addEventListener("input", () => count("#a_title","#a_title_n",3));
+  $("#a_one").addEventListener("input",   () => count("#a_one","#a_one_n",10));
+
+  /* Week preview only. The authoritative value is computed by the function in
+     the city's own timezone and comes back in the response; this is the browser's
+     guess so you can see a Sunday-night event landing in the week you expect. */
+  const syncWeek = () => {
+    const v = $("#a_start").value;
+    $("#a_wk").textContent = v ? isoWeek(new Date(v)) : "";
+  };
+  $("#a_start").addEventListener("change", syncWeek);
+
+  $("#a_back").onclick = () => load();
+  $("#addform").addEventListener("submit", e => { e.preventDefault(); submitAdd(); });
+  $("#a_title").focus();
+  loadManual();
+}
+
+async function submitAdd(){
+  const err = m => { $("#a_err").textContent = m; $("#a_go").disabled = false;
+                     $("#a_go").textContent = "Add to queue"; };
+  const val = id => $(id).value.trim();
+
+  if(val("#a_title").length < 3)  return err("Title needs at least 3 characters.");
+  if(val("#a_one").length < 10)   return err("One-liner needs at least 10 characters.");
+  if(!val("#a_venue"))            return err("Venue is required.");
+  if(!val("#a_start"))            return err("Start time is required.");
+  if(!/^https?:\/\//.test(val("#a_src"))) return err("Source URL must start with http.");
+
+  $("#a_go").disabled = true; $("#a_go").textContent = "Adding"; $("#a_err").textContent = "";
+
+  /* datetime-local gives "2026-11-05T18:00" with no zone, which is exactly what
+     the function wants: it reads the wall time in the city's own timezone. */
+  const body = {
+    p_city: val("#a_city"), p_title: val("#a_title"), p_venue_name: val("#a_venue"),
+    p_starts_at: val("#a_start").replace("T"," "),
+    p_category: val("#a_cat"), p_source_url: val("#a_src"), p_one_liner: val("#a_one"),
+    p_subcategory: val("#a_sub") || null,
+    p_freshness_tier: Number(val("#a_tier")),
+    p_ends_at: val("#a_end") ? val("#a_end").replace("T"," ") : null,
+    p_venue_address: val("#a_addr") || null,
+    p_neighborhood: val("#a_hood") || null,
+    p_price_band: val("#a_price"),
+    p_booking_url: val("#a_book") || null,
+    p_image_url: val("#a_img") || null,
+    p_image_rights: val("#a_rights"),
+  };
+
+  try{
+    const r = await fetch(`${S.url}/rest/v1/rpc/add_manual_event`, {
+      method:"POST",
+      headers:{ ...authHeaders(), "Content-Type":"application/json" },
+      body: JSON.stringify(body)
+    });
+    const j = await r.json().catch(()=>({}));
+    if(r.status === 401) return signInScreen("Session expired. Sign in again.");
+    /* A RAISE in the function arrives as PostgREST's { message } -- those are the
+       schema's own limits talking (title length, category, price band), so they
+       are worth showing verbatim rather than flattening to "failed". */
+    if(!r.ok) return err(j.message || j.hint || `Failed (${r.status})`);
+
+    addScreen(`<p class="ok">Added <b>${esc(j.title || $("#a_title").value)}</b> to
+      ${esc(j.city)} for <b>${esc(j.week)}</b> · id <b>${esc(j.id)}</b><br>
+      It ships on the next publish — run the vouch-weekly action to send it now.</p>`);
+  }catch(e){
+    err(`${e.name}: ${e.message}`);
+  }
+}
+
+/* What has been added by hand, newest start first. Filtering on the payload is
+   what makes this specifically the manual rows rather than the whole queue. */
+async function loadManual(){
+  try{
+    const r = await fetch(`${S.url}/rest/v1/weekly_queue`
+      + `?payload->provenance->>source=eq.manual`
+      + `&select=id,title,city,week,starts_at&order=starts_at.desc&limit=25`,
+      { headers: authHeaders() });
+    if(!r.ok) return;
+    const rows = await r.json();
+    if(!rows.length) return;
+    $("#a_list").innerHTML = `<h3>Added by hand</h3><ul>` + rows.map(x => `
+      <li><span>${esc(x.title)}</span>
+          <span class="when">${esc(x.city)} · ${esc(x.week)} · ${
+            new Date(x.starts_at).toLocaleDateString("en-US",
+              {month:"short",day:"numeric"})}</span>
+          <span class="spacer" style="flex:1"></span>
+          <button type="button" data-del="${esc(x.id)}">Remove</button></li>`).join("") + `</ul>`;
+    $("#a_list").querySelectorAll("[data-del]").forEach(b =>
+      b.onclick = () => deleteManual(b.dataset.del));
+  }catch(e){ /* the list is a convenience; its absence is not an error worth showing */ }
+}
+
+async function deleteManual(id){
+  try{
+    const r = await fetch(`${S.url}/rest/v1/rpc/delete_manual_event`, {
+      method:"POST", headers:{ ...authHeaders(), "Content-Type":"application/json" },
+      body: JSON.stringify({ p_id: id })
+    });
+    if(r.ok) loadManual();
+    else $("#a_err").textContent = "Could not remove that one.";
+  }catch(e){ $("#a_err").textContent = `${e.name}: ${e.message}`; }
+}
+
+$("#add").onclick = () => addScreen();
+
+document.addEventListener("keydown", e => {
+  if(!S.token) return;
+  /* The add form is full of text fields and selects, and every review shortcut
+     is a bare letter. Without this, typing a venue name approves whatever card
+     the deck happened to be on. */
+  if(S.mode !== "queue") return;
+  if(["INPUT","TEXTAREA","SELECT"].includes(e.target.tagName)) return;
+
+  /* While editing, letters have to reach the field -- pressing A must type an
+     "a", not approve. Previously Escape was the only way back out and it was not
+     mentioned anywhere in the UI, so after an edit every shortcut looked broken:
+     the keypress was swallowed by this guard and the browser typed the character
+     into the title instead. Enter now commits, matching what a text field does. */
+  if(S.editing){
+    if(e.key === "Enter" && !e.shiftKey){ e.preventDefault(); endEdit(); }
+    else if(e.key === "Escape"){ endEdit(); }
+    return;
+  }
+
+  const k = e.key.toLowerCase();
+  if(k === "a") decide("approved");
+  else if(k === "r") decide("rejected");
+  else if(k === "s"){ S.i++; render(); }
+  else if(k === "u") undo();
+  else if(k === "o") window.open(S.rows[S.i]?.payload.source_urls[0], "_blank");
+  else if(k === "e"){
+    /* Without this the keydown runs, focuses the contenteditable, and then the
+       browser's default action types the literal "e" into the title. */
+    e.preventDefault();
+    startEdit();
+  }
+});
+
+/* The footer reads as a row of buttons, so make it one. Clicking an action while
+   still editing commits the edit first, which is what the click means. */
+$("#bar").addEventListener("click", e => {
+  const el = e.target.closest("[data-act]");
+  if(!el || !S.token || S.mode !== "queue") return;
+  const k = el.dataset.act;
+  if(k === "e"){ startEdit(); return; }
+  endEdit();
+  if(k === "a") decide("approved");
+  else if(k === "r") decide("rejected");
+  else if(k === "s"){ S.i++; render(); }
+  else if(k === "u") undo();
+  else if(k === "o") window.open(S.rows[S.i]?.payload.source_urls[0], "_blank");
+});
+
+/* Clicking away from the text is also a way of saying "done". */
+document.addEventListener("mousedown", e => {
+  if(S.editing && !e.target.closest("#t,#o,#bar")) endEdit();
+});
+
+signInScreen();
+</script>
+</body>
+</html>

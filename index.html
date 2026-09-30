@@ -13,7 +13,7 @@
   header h1 { font-size:18px; margin:0; font-weight:600; letter-spacing:.2px; }
   header .sp { flex:1; }
   header button { background:none; border:1px solid var(--line); border-radius:999px; padding:6px 12px; color:var(--muted); cursor:pointer; }
-  main { max-width:1040px; margin:0 auto; padding:22px 24px 80px; }
+  main { max-width:1040px; margin:0 auto; padding:22px 24px 80px; overflow-x:hidden; }
   .cities { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:18px; }
   .chip { border:1px solid var(--line); background:#fff; border-radius:999px; padding:8px 14px; cursor:pointer; font-weight:500; }
   .chip.on { background:var(--green); color:#fff; border-color:var(--green); }
@@ -30,7 +30,9 @@
   .drop strong { color:var(--green); }
   .drop input { display:none; }
   .file { margin-top:14px; border:1px solid var(--line); border-radius:14px; padding:14px 16px; }
-  .file h3 { margin:0; font-size:14px; font-weight:600; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .file h3 { margin:0; font-size:14px; font-weight:600; display:flex; gap:8px; align-items:center; flex-wrap:wrap; min-width:0; }
+  /* A file name is one long word: let it break, or on a phone it pushes the card off the screen. */
+  .file h3 .fname { min-width:0; overflow-wrap:anywhere; }
   .tag { font-size:11px; letter-spacing:.8px; text-transform:uppercase; border-radius:999px; padding:3px 8px; background:var(--fair); color:var(--green); font-weight:600; }
   .tag.hh { background:#FBEFF0; color:var(--claret); }
   .nums { display:flex; gap:18px; flex-wrap:wrap; margin:10px 0 6px; }
@@ -223,7 +225,7 @@ function renderFiles(){
     const actions = f.state === "ready" ? `<div class="actions"><button class="primary" data-pub="${f.id}">Publish to the app</button>${f.error ? `<span class="msg err">${esc(f.error)}</span>` : `<span class="msg">Live for everyone on their next open.</span>`}</div>`
       : f.state === "publishing" ? `<div class="actions"><button class="primary" disabled>Publishing…</button><span class="msg">Looking up venues on Google and writing.</span></div>`
       : f.state === "done" ? `<div class="actions"><span class="msg ok">✓ Published ${r?.written ?? ""} ${f.kind === "events" ? "events" : "happy hours"}${r?.geocoded ? ` · ${r.geocoded} venues located` : ""}${r?.totalInApp != null ? ` · ${r.totalInApp} happy hours now live for this city` : ""}.</span></div>` : "";
-    return `<div class="file"><h3>${tag} ${esc(f.name)}</h3>${body}${actions}</div>`;
+    return `<div class="file"><h3>${tag} <span class="fname">${esc(f.name)}</span></h3>${body}${actions}</div>`;
   }).join("");
   document.querySelectorAll("[data-pub]").forEach(b => b.onclick = () => publish(b.dataset.pub));
 }

@@ -17,12 +17,15 @@
   .cities { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:18px; }
   .chip { border:1px solid var(--line); background:#fff; border-radius:999px; padding:8px 14px; cursor:pointer; font-weight:500; }
   .chip.on { background:var(--green); color:#fff; border-color:var(--green); }
-  .grid { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+  .grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:18px; align-items:start; }
   @media (max-width:820px) { .grid { grid-template-columns:1fr; } }
-  .card { background:#fff; border:1px solid var(--line); border-radius:18px; padding:18px 20px; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:18px; padding:18px 20px; min-width:0; overflow-wrap:anywhere; }
   .card h2 { margin:0 0 4px; font-size:16px; font-weight:600; }
   .card .sub { color:var(--muted); font-size:13px; margin-bottom:12px; }
-  .drop { border:2px dashed #C9D6CD; border-radius:14px; padding:34px 18px; text-align:center; color:var(--muted); background:var(--fair); cursor:pointer; transition:background .15s; }
+  /* A <label> is inline by default: without display:block its padding, border and the two lines
+     inside collapsed on top of each other (2026-09-30). */
+  .drop { display:block; border:2px dashed #C9D6CD; border-radius:14px; padding:34px 18px; text-align:center; color:var(--muted); background:var(--fair); cursor:pointer; transition:background .15s; line-height:1.6; }
+  .drop small { display:block; margin-top:6px; font-size:12px; }
   .drop.over { background:#E4F0E7; border-color:var(--leaf); color:var(--green); }
   .drop strong { color:var(--green); }
   .drop input { display:none; }
@@ -125,7 +128,7 @@ function render(){
         <h2>Drop this week’s sheets · ${esc(cityName)}</h2>
         <div class="sub">The events CSV and the happy-hours CSV, one or both at once. Each is read and previewed first; nothing reaches the app until you press Publish.</div>
         <label class="drop" id="drop"><input type="file" id="pick" accept=".csv,text/csv" multiple>
-          <strong>Drop CSV files here</strong> or click to choose<br><span style="font-size:12px">events: event_name, date_range, … · happy hours: business_name, hours_days, …</span></label>
+          <strong>Drop CSV files here</strong> or click to choose<small>events: event_name, date_range, … · happy hours: business_name, hours_days, …</small></label>
         <div id="files"></div>
       </section>
       <section class="card" id="statsCard">
